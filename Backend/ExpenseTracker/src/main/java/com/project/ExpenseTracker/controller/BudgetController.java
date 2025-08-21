@@ -1,0 +1,88 @@
+package com.project.ExpenseTracker.controller;
+
+import com.project.ExpenseTracker.exception.BudgetAlreadyExists;
+import com.project.ExpenseTracker.exception.UserNotFound;
+import com.project.ExpenseTracker.payload.BudgetDTO;
+import com.project.ExpenseTracker.service.abstractclass.BudgetService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("api/budget")
+public class BudgetController {
+    @Autowired
+    private BudgetService budgetService;
+
+    @GetMapping("/get/budget/{uid}")
+    public ResponseEntity<?> getAllBudgetsOfUser(@PathVariable Long uid) {
+        try {
+            List<BudgetDTO> reponse = budgetService.getAllBudgetsOfUser(uid);
+            return new ResponseEntity<>(reponse, HttpStatus.OK);
+        } catch (UserNotFound e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ResponseEntity<>("something went wrong!", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/create/{uid}")
+    public ResponseEntity<?> createBudget(@Valid @RequestBody BudgetDTO budgetDTO, @PathVariable Long uid, BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            List<String> errors = bindingResult.getFieldErrors().stream()
+                    .map(fieldError -> fieldError.getDefaultMessage())
+                    .collect(Collectors.toList());
+            return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+        }
+        try {
+            BudgetDTO respone = budgetService.createBudget(uid, budgetDTO);
+            return new ResponseEntity<>(respone, HttpStatus.CREATED);
+        } catch (UserNotFound | BudgetAlreadyExists e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.FORBIDDEN);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ResponseEntity<>("something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/createall/{uid}")
+    public ResponseEntity<?> createAllBudget(@Valid @RequestBody List<BudgetDTO> budgetDTOList, @PathVariable Long uid, BindingResult bindingResult) {
+        try {
+            if (bindingResult.hasErrors()) {
+                Set<String> error = bindingResult.getFieldErrors().stream()
+                        .map(fieldError -> fieldError.getField()+":"+fieldError.getDefaultMessage())
+                        .collect(Collectors.toSet());
+                return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+            }
+            List<BudgetDTO> response = budgetService.createAllBudgets(uid, budgetDTOList);
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
+
+        } catch (UserNotFound | BudgetAlreadyExists e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.FORBIDDEN);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ResponseEntity<>("somthing went wrong!!", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/delete")
+    public ResponseEntity<?> deleteBudgetOfUser(@RequestParam Long uid, @RequestParam Long bid) {
+        try {
+            String respone = budgetService.deleteBudgetOfUser(uid, bid);
+            return new ResponseEntity<>(respone, HttpStatus.OK);
+        } catch (SecurityException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.FORBIDDEN);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ResponseEntity<>("something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+}

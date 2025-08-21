@@ -1,0 +1,25 @@
+package com.project.ExpenseTracker.service.abstractclass;
+
+
+import com.project.ExpenseTracker.filter.FilterRequest;
+import com.project.ExpenseTracker.model.Expense;
+import com.project.ExpenseTracker.payload.ExpenseDTO;
+import com.project.ExpenseTracker.payload.ExpenseUpdateDTO;
+import jakarta.validation.Valid;
+
+import java.util.List;
+import java.util.Map;
+
+public interface ExpenseService {
+    ExpenseDTO addExpenseOfUser(Long uid, @Valid ExpenseDTO expenseDTO);
+
+    List<String> validation(ExpenseUpdateDTO expenseDTO, Map<String, Object> updates) ;
+
+    ExpenseDTO updateExpenseOfUser(Long uid, Long eid, Map<String, Object> updates);
+
+    List<String> validateFilter(Expense expense, FilterRequest filterRequest);
+
+    List<ExpenseDTO> getFilterExpenses(Long uid, FilterRequest filterRequest);
+
+    List<ExpenseDTO> addAllExpenses(@Valid List<ExpenseDTO> expenseDTOList, Long uid);
+}
