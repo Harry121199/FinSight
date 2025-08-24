@@ -7,6 +7,7 @@ import com.project.ExpenseTracker.model.Expense;
 import com.project.ExpenseTracker.model.Users;
 import com.project.ExpenseTracker.payload.ExpenseDTO;
 import com.project.ExpenseTracker.payload.UserDTO;
+import com.project.ExpenseTracker.payload.UserDeleteRequest;
 import com.project.ExpenseTracker.payload.UserUpdateDTO;
 import com.project.ExpenseTracker.repository.ExpenseRepo;
 import com.project.ExpenseTracker.repository.UserRepo;
@@ -14,6 +15,12 @@ import com.project.ExpenseTracker.service.abstractclass.UserService;
 import jakarta.validation.Validator;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +49,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private AuthenticationManager authenticationManager;
 
     @Override
     @Transactional
@@ -111,6 +121,34 @@ public class UserServiceImpl implements UserService {
         mapToObject(updates, users);
         Users saved = userRepo.save(users);
         return modelMapper.map(saved, UserDTO.class);
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(Long uid, UserDeleteRequest userDeleteRequest) {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String currentUsername = userDetails.getUsername();
+        Users userToDelete = userRepo.findById(uid)
+                .orElseThrow(() -> new UserNotFound("User not found with ID: " + uid));
+
+        //email is username....
+        if (!userToDelete.getEmail().equals(currentUsername)) {
+            throw new SecurityException("Your are not authorized to delete this account");
+        }
+
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            currentUsername,
+                            userDeleteRequest.getPassword()
+                    )
+            );
+        } catch (BadCredentialsException e) {
+            throw new SecurityException("You are not authorized to delete this account");
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
+        userRepo.delete(userToDelete);
     }
 
     @SuppressWarnings(value = {"unchecked"})

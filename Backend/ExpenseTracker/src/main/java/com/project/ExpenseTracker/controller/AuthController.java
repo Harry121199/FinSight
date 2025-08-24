@@ -11,8 +11,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -27,10 +29,9 @@ public class AuthController {
     private UserService userService;
 
     @Autowired
-    private AuthenticationManager authenticationManager;
-
-    @Autowired
     private JwtToken jwtToken;
+    @Autowired
+    private AuthenticationManager authenticationManager;
 
     @PostMapping("/register")
     public ResponseEntity<?> signup(@Valid @RequestBody UserDTO userDTO, BindingResult bindingResult) {
@@ -60,16 +61,23 @@ public class AuthController {
             UserDetails userDetails = authenticate(jwtAuthRequest.getEmail(), jwtAuthRequest.getPassword());
             JwtAuthResponse jwtAuthResponse = new JwtAuthResponse(jwtToken.generateJwtToken(userDetails));
             return new ResponseEntity<>(jwtAuthResponse, HttpStatus.OK);
-        }catch (Exception e){
+        }catch (BadCredentialsException e){
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
+        }
+        catch (Exception e){
             e.printStackTrace();
-            return new ResponseEntity<>("something went wrong!", HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
-    private UserDetails authenticate(String email, String password) {
+    public UserDetails authenticate(String email, String password) {
         UsernamePasswordAuthenticationToken userpass = new UsernamePasswordAuthenticationToken(email, password);
         Authentication authentication = authenticationManager.authenticate(userpass);
         return (UserDetails) authentication.getPrincipal();
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(){
+        SecurityContextHolder.clearContext();
+        return new ResponseEntity<>("User loggedOut successfully", HttpStatus.OK);
+    }
 }
