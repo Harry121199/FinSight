@@ -1,10 +1,12 @@
 package com.project.ExpenseTracker.controller;
 
+import com.project.ExpenseTracker.enums.ExpenseCategory;
 import com.project.ExpenseTracker.exception.ExpenseNotFound;
 import com.project.ExpenseTracker.exception.UserNotFound;
 import com.project.ExpenseTracker.filter.ExpenseFilterRequest;
 import com.project.ExpenseTracker.model.Expense;
 import com.project.ExpenseTracker.payload.ExpenseDTO;
+import com.project.ExpenseTracker.payload.ExpenseSummaryResponse;
 import com.project.ExpenseTracker.payload.ExpenseUpdateDTO;
 import com.project.ExpenseTracker.payload.UserDTO;
 import com.project.ExpenseTracker.service.abstractclass.ExpenseService;
@@ -133,6 +135,19 @@ public class ExpenseController {
             return new ResponseEntity<>("something went wrong!!!!", HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/{uid}/summary")
+    public ResponseEntity<?> getSummaryOfExpenses(@PathVariable Long uid,
+                                                  @RequestParam(required = false) ExpenseCategory expenseCategory,
+                                                  @RequestParam(required = false) String period) {
+        try {
+            List<ExpenseSummaryResponse> response = expenseService.getExpenseSummary(uid, expenseCategory, period);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ResponseEntity<>("something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 }
 

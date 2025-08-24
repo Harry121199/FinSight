@@ -1,6 +1,7 @@
 package com.project.ExpenseTracker.service.implclass;
 
 
+import com.project.ExpenseTracker.enums.ExpenseCategory;
 import com.project.ExpenseTracker.exception.ExpenseNotFound;
 import com.project.ExpenseTracker.exception.UserNotFound;
 import com.project.ExpenseTracker.filter.ExpenseFilterRequest;
@@ -8,10 +9,16 @@ import com.project.ExpenseTracker.filter.ExpenseFilterSpecification;
 import com.project.ExpenseTracker.model.Expense;
 import com.project.ExpenseTracker.model.Users;
 import com.project.ExpenseTracker.payload.ExpenseDTO;
+import com.project.ExpenseTracker.payload.ExpenseSummaryResponse;
 import com.project.ExpenseTracker.payload.ExpenseUpdateDTO;
 import com.project.ExpenseTracker.repository.ExpenseRepo;
 import com.project.ExpenseTracker.repository.UserRepo;
 import com.project.ExpenseTracker.service.abstractclass.ExpenseService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import jakarta.validation.Validator;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +27,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Field;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.*;
 
 @Service
@@ -33,6 +42,9 @@ public class ExpenseServiceImpl implements ExpenseService {
     private ModelMapper modelMapper;
     @Autowired
     private ExpenseRepo expenseRepo;
+    @Autowired
+    private EntityManager entityManager;
+
 
     @Override
     @Transactional
@@ -161,5 +173,35 @@ public class ExpenseServiceImpl implements ExpenseService {
         return expenseRepo.findAll(expenseFilterSpecification, sort).stream()
                 .map(expense -> modelMapper.map(expense, ExpenseDTO.class))
                 .toList();
+    }
+
+    @Override
+    public List<ExpenseSummaryResponse> getExpenseSummary(Long uid, ExpenseCategory expenseCategory, String period) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<ExpenseSummaryResponse> cq = cb.createQuery(ExpenseSummaryResponse.class);
+        Root<Expense> expenseRoot = cq.from(Expense.class);
+
+        List<Predicate> predicates = new ArrayList<>();
+        predicates.add(cb.equal(expenseRoot.get("user").get("uid"), uid));
+        if(period!=null&&!period.isEmpty()){
+            YearMonth yearMonth = YearMonth.parse(period);
+            LocalDate startDate = yearMonth.atDay(1);
+            LocalDate endDate = yearMonth.atEndOfMonth();
+            predicates.add(cb.between(expenseRoot.get("transactionDate"), startDate, endDate));
+        }
+        if (expenseCategory!=null) {
+            predicates.add(cb.equal(expenseRoot.get("expenseCategory"), expenseCategory));
+        }
+
+        cq.where(predicates.toArray(new Predicate[0]));
+
+        cq.groupBy(expenseRoot.get("expenseCategory"));
+
+        cq.select(cb.construct(
+                ExpenseSummaryResponse.class,
+                expenseRoot.get("expenseCategory"),
+                cb.sum(expenseRoot.get("amount"))
+        ));
+        return entityManager.createQuery(cq).getResultList();
     }
 }
