@@ -1,7 +1,7 @@
 package com.project.ExpenseTracker.service.abstractclass;
 
 
-import com.project.ExpenseTracker.filter.FilterRequest;
+import com.project.ExpenseTracker.filter.ExpenseFilterRequest;
 import com.project.ExpenseTracker.model.Expense;
 import com.project.ExpenseTracker.payload.ExpenseDTO;
 import com.project.ExpenseTracker.payload.ExpenseUpdateDTO;
@@ -17,9 +17,9 @@ public interface ExpenseService {
 
     ExpenseDTO updateExpenseOfUser(Long uid, Long eid, Map<String, Object> updates);
 
-    List<String> validateFilter(Expense expense, FilterRequest filterRequest);
+    List<String> validateFilter(Expense expense, ExpenseFilterRequest expenseFilterRequest);
 
-    List<ExpenseDTO> getFilterExpenses(Long uid, FilterRequest filterRequest);
+    List<ExpenseDTO> getFilterExpenses(Long uid, ExpenseFilterRequest expenseFilterRequest);
 
     List<ExpenseDTO> addAllExpenses(@Valid List<ExpenseDTO> expenseDTOList, Long uid);
 }

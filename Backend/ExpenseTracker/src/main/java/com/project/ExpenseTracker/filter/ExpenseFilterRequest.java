@@ -9,7 +9,7 @@ import java.util.Map;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class FilterRequest {
+public class ExpenseFilterRequest {
     private Map<String, Object> filters;
     private String sortField;
     private String sortDirection;

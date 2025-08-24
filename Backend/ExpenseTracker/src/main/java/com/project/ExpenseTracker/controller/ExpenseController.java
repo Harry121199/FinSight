@@ -1,9 +1,8 @@
 package com.project.ExpenseTracker.controller;
 
-import com.fasterxml.jackson.databind.deser.BuilderBasedDeserializer;
 import com.project.ExpenseTracker.exception.ExpenseNotFound;
 import com.project.ExpenseTracker.exception.UserNotFound;
-import com.project.ExpenseTracker.filter.FilterRequest;
+import com.project.ExpenseTracker.filter.ExpenseFilterRequest;
 import com.project.ExpenseTracker.model.Expense;
 import com.project.ExpenseTracker.payload.ExpenseDTO;
 import com.project.ExpenseTracker.payload.ExpenseUpdateDTO;
@@ -34,7 +33,7 @@ public class ExpenseController {
 
     @PostMapping("/add/{uid}")
     public ResponseEntity<?> addExpense(@Valid @RequestBody ExpenseDTO expenseDTO, @PathVariable Long uid, BindingResult bindingResult) {
-        if(bindingResult.hasErrors()) {
+        if (bindingResult.hasErrors()) {
             List<String> errors = bindingResult.getFieldErrors()
                     .stream()
                     .map(error -> error.getField() + ": " + error.getDefaultMessage())
@@ -43,12 +42,12 @@ public class ExpenseController {
             return ResponseEntity.badRequest().body(errors);
         }
         ExpenseDTO response;
-        try{
-            response = expenseService.addExpenseOfUser(uid,expenseDTO);
-            return new ResponseEntity<>(response,HttpStatus.CREATED);
-        }catch (UserNotFound e){
-            return new ResponseEntity<>(e.getMessage(),HttpStatus.BAD_REQUEST);
-        }catch (Exception e){
+        try {
+            response = expenseService.addExpenseOfUser(uid, expenseDTO);
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
+        } catch (UserNotFound e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
             e.printStackTrace();
             return new ResponseEntity<>("something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -56,7 +55,7 @@ public class ExpenseController {
 
     @PostMapping("/addall/{uid}")
     public ResponseEntity<?> addAllExpenses(@Valid @RequestBody List<ExpenseDTO> expenseDTOList, @PathVariable Long uid, BindingResult bindingResult) {
-        if(bindingResult.hasErrors()) {
+        if (bindingResult.hasErrors()) {
             Set<String> errors = bindingResult.getFieldErrors()
                     .stream()
                     .map(error -> error.getField() + ": " + error.getDefaultMessage())
@@ -79,11 +78,11 @@ public class ExpenseController {
     @GetMapping("/getallexpenses/{uid}")
     public ResponseEntity<?> getAllExpenses(@PathVariable Long uid) {
         UserDTO response;
-        try{
+        try {
             response = userService.getAllExpensesOfUser(uid);
-        }catch (UserNotFound e){
+        } catch (UserNotFound e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             return new ResponseEntity<>("something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -91,15 +90,15 @@ public class ExpenseController {
     }
 
     @PostMapping("/filter/expenses/{uid}")
-    public ResponseEntity<?> getFilterExpenses(@PathVariable Long uid, @RequestBody FilterRequest filterRequest) {
+    public ResponseEntity<?> getFilterExpenses(@PathVariable Long uid, @RequestBody ExpenseFilterRequest expenseFilterRequest) {
         try {
-            List<String> errors = expenseService.validateFilter(new Expense(), filterRequest);
+            List<String> errors = expenseService.validateFilter(new Expense(), expenseFilterRequest);
             if (!errors.isEmpty()) return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
-            List<ExpenseDTO> response = expenseService.getFilterExpenses(uid,filterRequest);
+            List<ExpenseDTO> response = expenseService.getFilterExpenses(uid, expenseFilterRequest);
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (UserNotFound | SecurityException e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.FORBIDDEN);
-        }catch (Exception e){
+        } catch (Exception e) {
             return new ResponseEntity<>("something went wrong!", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -123,18 +122,17 @@ public class ExpenseController {
 
 
     @DeleteMapping("/delete/expenses")
-    public ResponseEntity<?> deleteUserExpense(@RequestParam Long uid,@RequestParam Long eid){
+    public ResponseEntity<?> deleteUserExpense(@RequestParam Long uid, @RequestParam Long eid) {
         String response;
-        try{
-            response = userService.deleteExpenseOfUser(uid,eid);
-        }catch(ExpenseNotFound | SecurityException e){
+        try {
+            response = userService.deleteExpenseOfUser(uid, eid);
+        } catch (ExpenseNotFound | SecurityException e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             return new ResponseEntity<>("something went wrong!!!!", HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
-
 }
 

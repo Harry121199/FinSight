@@ -3,8 +3,8 @@ package com.project.ExpenseTracker.service.implclass;
 
 import com.project.ExpenseTracker.exception.ExpenseNotFound;
 import com.project.ExpenseTracker.exception.UserNotFound;
-import com.project.ExpenseTracker.filter.FilterRequest;
-import com.project.ExpenseTracker.filter.FilterSpecification;
+import com.project.ExpenseTracker.filter.ExpenseFilterRequest;
+import com.project.ExpenseTracker.filter.ExpenseFilterSpecification;
 import com.project.ExpenseTracker.model.Expense;
 import com.project.ExpenseTracker.model.Users;
 import com.project.ExpenseTracker.payload.ExpenseDTO;
@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Field;
-import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -129,9 +128,9 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    public List<String> validateFilter(Expense expense, FilterRequest filterRequest) {
+    public List<String> validateFilter(Expense expense, ExpenseFilterRequest expenseFilterRequest) {
         List<String> errors = new ArrayList<>(
-                filterRequest.getFilters().keySet().stream()
+                expenseFilterRequest.getFilters().keySet().stream()
                 .map(key -> {
                     try {
                         Field field = expense.getClass().getDeclaredField(key);
@@ -143,7 +142,7 @@ public class ExpenseServiceImpl implements ExpenseService {
                 .toList()
         );
         try {
-            Field field = expense.getClass().getDeclaredField(filterRequest.getSortField());
+            Field field = expense.getClass().getDeclaredField(expenseFilterRequest.getSortField());
         } catch (NoSuchFieldException e) {
             errors.add("Invalid sort field");
         }
@@ -151,15 +150,15 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    public List<ExpenseDTO> getFilterExpenses(Long uid, FilterRequest filterRequest) {
-        FilterSpecification<Expense> filterSpecification = new FilterSpecification<>(uid, filterRequest.getFilters());
+    public List<ExpenseDTO> getFilterExpenses(Long uid, ExpenseFilterRequest expenseFilterRequest) {
+        ExpenseFilterSpecification<Expense> expenseFilterSpecification = new ExpenseFilterSpecification<>(uid, expenseFilterRequest.getFilters());
         Sort sort = Sort.unsorted();
-        if(filterRequest.getSortField()!=null&&!filterRequest.getSortField().isEmpty()){
-            Sort.Direction direction = "desc".equalsIgnoreCase(filterRequest.getSortDirection())
+        if(expenseFilterRequest.getSortField()!=null&&!expenseFilterRequest.getSortField().isEmpty()){
+            Sort.Direction direction = "desc".equalsIgnoreCase(expenseFilterRequest.getSortDirection())
                     ? Sort.Direction.DESC: Sort.Direction.ASC;
-            sort = Sort.by(direction, filterRequest.getSortField());
+            sort = Sort.by(direction, expenseFilterRequest.getSortField());
         }
-        return expenseRepo.findAll(filterSpecification, sort).stream()
+        return expenseRepo.findAll(expenseFilterSpecification, sort).stream()
                 .map(expense -> modelMapper.map(expense, ExpenseDTO.class))
                 .toList();
     }

@@ -13,12 +13,12 @@ import java.util.List;
 import java.util.Map;
 
 
-public class FilterSpecification<T> implements Specification<T> {
+public class ExpenseFilterSpecification<T> implements Specification<T> {
 
     private final Map<String, Object> filters;
     private final Long userId;
 
-    public FilterSpecification(Long userId,Map<String, Object> filters) {
+    public ExpenseFilterSpecification(Long userId, Map<String, Object> filters) {
         this.filters = filters;
         this.userId = userId;
     }

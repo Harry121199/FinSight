@@ -1,8 +1,10 @@
 package com.project.ExpenseTracker.controller;
 
+import com.project.ExpenseTracker.enums.ExpenseCategory;
 import com.project.ExpenseTracker.exception.BudgetAlreadyExists;
 import com.project.ExpenseTracker.exception.UserNotFound;
 import com.project.ExpenseTracker.payload.BudgetDTO;
+import com.project.ExpenseTracker.payload.BudgetSummaryResponse;
 import com.project.ExpenseTracker.service.abstractclass.BudgetService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,11 +14,12 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("api/budget")
+@RequestMapping("/api/budget")
 public class BudgetController {
     @Autowired
     private BudgetService budgetService;
@@ -35,7 +38,7 @@ public class BudgetController {
     }
 
     @PostMapping("/create/{uid}")
-    public ResponseEntity<?> createBudget(@Valid @RequestBody BudgetDTO budgetDTO, @PathVariable Long uid, BindingResult bindingResult) {
+    public ResponseEntity<?> createBudget(@Valid @RequestBody   BudgetDTO budgetDTO, @PathVariable Long uid, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
             List<String> errors = bindingResult.getFieldErrors().stream()
                     .map(fieldError -> fieldError.getDefaultMessage())
@@ -83,6 +86,21 @@ public class BudgetController {
         } catch (Exception e) {
             e.printStackTrace();
             return new ResponseEntity<>("something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/{uid}/summary")
+    public ResponseEntity<?> getBudgetSummaryOfUser(@PathVariable Long uid,
+                                                    @RequestParam String period,
+                                                    @RequestParam(required = false) ExpenseCategory expenseCategory) {
+        try {
+            List<BudgetSummaryResponse> responses = budgetService.getBudgetSummary(uid, period,expenseCategory);
+            return new ResponseEntity<>(responses, HttpStatus.OK);
+        } catch (UserNotFound e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ResponseEntity<>("something went wrong!!", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }
