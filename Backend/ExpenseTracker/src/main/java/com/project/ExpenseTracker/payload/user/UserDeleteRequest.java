@@ -1,4 +1,4 @@
-package com.project.ExpenseTracker.payload;
+package com.project.ExpenseTracker.payload.user;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;

@@ -1,4 +1,4 @@
-package com.project.ExpenseTracker.payload;
+package com.project.ExpenseTracker.payload.user;
 
 import com.project.ExpenseTracker.enums.Gender;
 import com.project.ExpenseTracker.enums.Roles;

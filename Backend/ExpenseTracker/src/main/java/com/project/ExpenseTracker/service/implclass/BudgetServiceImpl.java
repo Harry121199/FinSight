@@ -7,8 +7,9 @@ import com.project.ExpenseTracker.exception.UserNotFound;
 import com.project.ExpenseTracker.model.Budget;
 import com.project.ExpenseTracker.model.Expense;
 import com.project.ExpenseTracker.model.Users;
-import com.project.ExpenseTracker.payload.BudgetDTO;
-import com.project.ExpenseTracker.payload.BudgetSummaryResponse;
+import com.project.ExpenseTracker.payload.budget.RequestBudgetDTO;
+import com.project.ExpenseTracker.payload.budget.ResponseBudgetDTO;
+import com.project.ExpenseTracker.payload.budget.BudgetSummaryResponse;
 import com.project.ExpenseTracker.repository.BudgetRepo;
 import com.project.ExpenseTracker.repository.UserRepo;
 import com.project.ExpenseTracker.service.abstractclass.BudgetService;
@@ -17,6 +18,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,35 +51,34 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     @Transactional
-    public BudgetDTO createBudget(Long uid, BudgetDTO budgetDTO) {
+    public ResponseBudgetDTO createBudget(Long uid, @Valid RequestBudgetDTO requestBudgetDTO) {
         Users users = userRepo.findById(uid)
                 .orElseThrow(() -> new UserNotFound("User not exist with ID: " + uid));
-        boolean doBudgetExists = budgetRepo.existsByUserAndExpenseCategoryAndPeriod(users, budgetDTO.getExpenseCategory(),budgetDTO.getPeriod());
+        boolean doBudgetExists = budgetRepo.existsByUserAndExpenseCategoryAndPeriod(users, requestBudgetDTO.getExpenseCategory(), requestBudgetDTO.getPeriod());
         if (doBudgetExists) {
-            throw new BudgetAlreadyExists("Budget already exists with category: " + budgetDTO.getExpenseCategory());
+            throw new BudgetAlreadyExists("Budget already exists with category: " + requestBudgetDTO.getExpenseCategory());
         }
 
-        Budget mapped = modelMapper.map(budgetDTO, Budget.class);
-
-        users.addBudget(mapped);
+        Budget mapped = modelMapper.map(requestBudgetDTO, Budget.class);
+        mapped.setUser(users);
         Budget saved = budgetRepo.save(mapped);
-        return modelMapper.map(saved, BudgetDTO.class);
+        return modelMapper.map(saved, ResponseBudgetDTO.class);
     }
 
     @Override
     @Transactional
-    public List<BudgetDTO> createAllBudgets(Long uid, List<BudgetDTO> budgetDTOList) {
+    public List<ResponseBudgetDTO> createAllBudgets(Long uid, @Valid List<RequestBudgetDTO> requestBudgetDTOList) {
 
         Users users = userRepo.findById(uid)
                 .orElseThrow(() -> new UserNotFound("User not found with ID: " + uid));
-        return budgetDTOList.stream().map(budgetDTO -> {
-            if (budgetRepo.existsByUserAndExpenseCategoryAndPeriod(users, budgetDTO.getExpenseCategory(),budgetDTO.getPeriod())) {
-                throw new BudgetAlreadyExists("Budget already exists with category: " + budgetDTO.getExpenseCategory());
+        return requestBudgetDTOList.stream().map(responseBudgetDTO -> {
+            if (budgetRepo.existsByUserAndExpenseCategoryAndPeriod(users, responseBudgetDTO.getExpenseCategory(), responseBudgetDTO.getPeriod())) {
+                throw new BudgetAlreadyExists("Budget already exists with category: " + responseBudgetDTO.getExpenseCategory());
             }
-            Budget mapped = modelMapper.map(budgetDTO, Budget.class);
-            users.addBudget(mapped);
+            Budget mapped = modelMapper.map(responseBudgetDTO, Budget.class);
+            mapped.setUser(users);
             Budget saved = budgetRepo.save(mapped);
-            return modelMapper.map(saved, BudgetDTO.class);
+            return modelMapper.map(saved, ResponseBudgetDTO.class);
         }).toList();
     }
 
@@ -94,23 +95,23 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
-    public List<BudgetDTO> getAllBudgetsOfUser(Long uid) {
+    public List<ResponseBudgetDTO> getAllBudgetsOfUser(Long uid) {
         Users users = userRepo.findById(uid)
                 .orElseThrow(() -> new UserNotFound("User not found with ID: " + uid));
         return users.getBudgets().stream()
-                .map(budget -> modelMapper.map(budget, BudgetDTO.class))
+                .map(budget -> modelMapper.map(budget, ResponseBudgetDTO.class))
                 .toList();
     }
 
     @Override
-    public List<String> validate(Map<String, Object> summaryFilter, BudgetDTO budgetDTOClass) {
+    public List<String> validate(Map<String, Object> summaryFilter, RequestBudgetDTO requestBudgetDTO) {
         List<String> errors = new ArrayList<>();
         summaryFilter
                 .forEach((key,value)->{
                     try {
-                        Field field = budgetDTOClass.getClass().getDeclaredField(key);
+                        Field field = requestBudgetDTO.getClass().getDeclaredField(key);
                         field.setAccessible(true);
-                        field.set(budgetDTOClass, value);
+                        field.set(requestBudgetDTO, value);
                     } catch (NoSuchFieldException e) {
                         errors.add("Field cannot be found with name: ".concat(key));
                     } catch (IllegalAccessException e) {
@@ -118,7 +119,7 @@ public class BudgetServiceImpl implements BudgetService {
                     }
                 });
         if(!errors.isEmpty()) return errors;
-        validator.validate(budgetDTOClass).forEach(budgetDTOConstraintViolation -> errors.add(budgetDTOConstraintViolation.getMessage()));
+        validator.validate(requestBudgetDTO).forEach(budgetDTOConstraintViolation -> errors.add(budgetDTOConstraintViolation.getMessage()));
         return errors;
     }
 

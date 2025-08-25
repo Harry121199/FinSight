@@ -1,4 +1,4 @@
-package com.project.ExpenseTracker.payload;
+package com.project.ExpenseTracker.payload.expense;
 
 import com.project.ExpenseTracker.enums.ExpenseCategory;
 import lombok.AllArgsConstructor;

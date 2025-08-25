@@ -8,9 +8,10 @@ import com.project.ExpenseTracker.filter.ExpenseFilterRequest;
 import com.project.ExpenseTracker.filter.ExpenseFilterSpecification;
 import com.project.ExpenseTracker.model.Expense;
 import com.project.ExpenseTracker.model.Users;
-import com.project.ExpenseTracker.payload.ExpenseDTO;
-import com.project.ExpenseTracker.payload.ExpenseSummaryResponse;
-import com.project.ExpenseTracker.payload.ExpenseUpdateDTO;
+import com.project.ExpenseTracker.payload.expense.RequestExpenseDTO;
+import com.project.ExpenseTracker.payload.expense.ExpenseSummaryResponse;
+import com.project.ExpenseTracker.payload.expense.ExpenseUpdateDTO;
+import com.project.ExpenseTracker.payload.expense.ResponseExpenseDTO;
 import com.project.ExpenseTracker.repository.ExpenseRepo;
 import com.project.ExpenseTracker.repository.UserRepo;
 import com.project.ExpenseTracker.service.abstractclass.ExpenseService;
@@ -48,28 +49,28 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     @Override
     @Transactional
-    public ExpenseDTO addExpenseOfUser(Long uid, ExpenseDTO expenseDTO) {
+    public ResponseExpenseDTO addExpenseOfUser(Long uid, RequestExpenseDTO requestExpenseDTO) {
         Users users = userRepo.findById(uid).orElseThrow(() -> new UserNotFound("User doesn't exists"));
-        Expense expense = modelMapper.map(expenseDTO, Expense.class);
-        users.addExpense(expense);
-        userRepo.save(users);
-        return modelMapper.map(expense, ExpenseDTO.class);
+        Expense expense = modelMapper.map(requestExpenseDTO, Expense.class);
+        expense.setUser(users);
+        Expense saved = expenseRepo.save(expense);
+        return modelMapper.map(saved, ResponseExpenseDTO.class);
     }
 
     @Override
     @Transactional
-    public List<ExpenseDTO> addAllExpenses(List<ExpenseDTO> expenseDTOList, Long uid) {
+    public List<ResponseExpenseDTO> addAllExpenses(List<RequestExpenseDTO> requestExpenseDTOList, Long uid) {
         Users users = userRepo.findById(uid)
                 .orElseThrow(() -> new UserNotFound("User cannot be found with ID: " + uid));
-        List<Expense> expenseList = expenseDTOList.stream()
+        List<Expense> expenseList = requestExpenseDTOList.stream()
                 .map(expenseDTO -> modelMapper.map(expenseDTO, Expense.class))
                 .toList();
-        users.addExpense(expenseList);
-        userRepo.save(users);
-
         return expenseList.stream()
-                .map(expense -> modelMapper.map(expense, ExpenseDTO.class))
-                .toList();
+                .map(expense -> {
+                    expense.setUser(users);
+                    Expense saved = expenseRepo.save(expense);
+                    return modelMapper.map(saved, ResponseExpenseDTO.class);
+                }).toList();
     }
 
     @SuppressWarnings(value = {"unchecked"})
@@ -127,7 +128,7 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     @Override
     @Transactional
-    public ExpenseDTO updateExpenseOfUser(Long uid, Long eid, Map<String, Object> updates) {
+    public ResponseExpenseDTO updateExpenseOfUser(Long uid, Long eid, Map<String, Object> updates) {
 
         Expense expense = expenseRepo.findById(eid)
                 .orElseThrow(() -> new ExpenseNotFound("No expense found with ID: " + eid));
@@ -136,7 +137,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         }
         mapToObject(expense, updates);
         Expense saved = expenseRepo.save(expense);
-        return modelMapper.map(saved, ExpenseDTO.class);
+        return modelMapper.map(saved, ResponseExpenseDTO.class);
     }
 
     @Override
@@ -162,7 +163,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    public List<ExpenseDTO> getFilterExpenses(Long uid, ExpenseFilterRequest expenseFilterRequest) {
+    public List<ResponseExpenseDTO> getFilterExpenses(Long uid, ExpenseFilterRequest expenseFilterRequest) {
         ExpenseFilterSpecification<Expense> expenseFilterSpecification = new ExpenseFilterSpecification<>(uid, expenseFilterRequest.getFilters());
         Sort sort = Sort.unsorted();
         if(expenseFilterRequest.getSortField()!=null&&!expenseFilterRequest.getSortField().isEmpty()){
@@ -171,7 +172,7 @@ public class ExpenseServiceImpl implements ExpenseService {
             sort = Sort.by(direction, expenseFilterRequest.getSortField());
         }
         return expenseRepo.findAll(expenseFilterSpecification, sort).stream()
-                .map(expense -> modelMapper.map(expense, ExpenseDTO.class))
+                .map(expense -> modelMapper.map(expense, ResponseExpenseDTO.class))
                 .toList();
     }
 

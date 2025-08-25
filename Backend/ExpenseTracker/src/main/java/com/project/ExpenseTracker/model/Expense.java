@@ -1,5 +1,9 @@
 package com.project.ExpenseTracker.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.project.ExpenseTracker.enums.ExpenseCategory;
 import jakarta.persistence.*;
 import lombok.*;
@@ -36,4 +40,9 @@ public class Expense {
     @EqualsAndHashCode.Exclude
     private Users user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "gid")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private ExpenseGroup expenseGroup;
 }

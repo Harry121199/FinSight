@@ -5,20 +5,22 @@ import com.project.ExpenseTracker.exception.UserAlreadyExists;
 import com.project.ExpenseTracker.exception.UserNotFound;
 import com.project.ExpenseTracker.model.Expense;
 import com.project.ExpenseTracker.model.Users;
-import com.project.ExpenseTracker.payload.ExpenseDTO;
-import com.project.ExpenseTracker.payload.UserDTO;
-import com.project.ExpenseTracker.payload.UserDeleteRequest;
-import com.project.ExpenseTracker.payload.UserUpdateDTO;
+import com.project.ExpenseTracker.payload.expense.RequestExpenseDTO;
+import com.project.ExpenseTracker.payload.expense.ResponseExpenseDTO;
+import com.project.ExpenseTracker.payload.user.RequestUserDTO;
+import com.project.ExpenseTracker.payload.user.ResponseUserDTO;
+import com.project.ExpenseTracker.payload.user.UserDeleteRequest;
+import com.project.ExpenseTracker.payload.user.UserUpdateDTO;
 import com.project.ExpenseTracker.repository.ExpenseRepo;
 import com.project.ExpenseTracker.repository.UserRepo;
 import com.project.ExpenseTracker.service.abstractclass.UserService;
+import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -55,21 +57,23 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDTO createUser(UserDTO userDTO) {
+    public ResponseUserDTO createUser(@Valid RequestUserDTO userDTO) {
         boolean exist = userRepo.existsByEmail(userDTO.getEmail());
         if(exist) throw new UserAlreadyExists("User already registered with email: " + userDTO.getEmail());
         Users mapped = modelMapper.map(userDTO, Users.class);
         mapped.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         mapped.setCreatedOn(LocalDate.now());
         Users saved = userRepo.save(mapped);
-        return modelMapper.map(saved, UserDTO.class);
+        return modelMapper.map(saved, ResponseUserDTO.class);
     }
 
     @Override
-    public UserDTO getAllExpensesOfUser(Long uid) {
+    public List<ResponseExpenseDTO> getAllExpensesOfUser(Long uid) {
         Users user = userRepo.findById(uid)
                 .orElseThrow(() -> new UserNotFound("user not found with the given id: " + uid));
-        return convertToDto(user);
+        return user.getExpenses().stream()
+                .map(expense -> modelMapper.map(expense, ResponseExpenseDTO.class))
+                .toList();
     }
 
     @Override
@@ -115,12 +119,12 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDTO updateUserDetails(Long uid, Map<String, Object> updates) {
+    public ResponseUserDTO updateUserDetails(Long uid, Map<String, Object> updates) {
         Users users = userRepo.findById(uid)
                 .orElseThrow(() -> new UserNotFound("user not found with ID: " + uid));
         mapToObject(updates, users);
         Users saved = userRepo.save(users);
-        return modelMapper.map(saved, UserDTO.class);
+        return modelMapper.map(saved, ResponseUserDTO.class);
     }
 
     @Override
@@ -170,13 +174,13 @@ public class UserServiceImpl implements UserService {
         });
     }
 
-    public UserDTO convertToDto(Users user) {
-        UserDTO userDTO = modelMapper.map(user, UserDTO.class);
-        List<ExpenseDTO> expenseDTOS = user.getExpenses()
+    public ResponseUserDTO convertToDto(Users user) {
+        ResponseUserDTO userDTO = modelMapper.map(user, ResponseUserDTO.class);
+        List<ResponseExpenseDTO> requestExpenseDTOS = user.getExpenses()
                 .stream()
-                .map(expense -> modelMapper.map(expense, ExpenseDTO.class))
+                .map(expense -> modelMapper.map(expense, ResponseExpenseDTO.class))
                 .collect(Collectors.toList());
-        userDTO.setExpenses(expenseDTOS);
+        userDTO.setExpenses(requestExpenseDTOS);
         return userDTO;
     }
 }

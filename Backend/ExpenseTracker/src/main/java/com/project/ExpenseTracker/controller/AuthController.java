@@ -1,7 +1,8 @@
 package com.project.ExpenseTracker.controller;
 
 import com.project.ExpenseTracker.exception.UserAlreadyExists;
-import com.project.ExpenseTracker.payload.UserDTO;
+import com.project.ExpenseTracker.payload.user.RequestUserDTO;
+import com.project.ExpenseTracker.payload.user.ResponseUserDTO;
 import com.project.ExpenseTracker.security.jwt.JwtToken;
 import com.project.ExpenseTracker.security.payload.JwtAuthRequest;
 import com.project.ExpenseTracker.security.payload.JwtAuthResponse;
@@ -34,7 +35,7 @@ public class AuthController {
     private AuthenticationManager authenticationManager;
 
     @PostMapping("/register")
-    public ResponseEntity<?> signup(@Valid @RequestBody UserDTO userDTO, BindingResult bindingResult) {
+    public ResponseEntity<?> signup(@Valid @RequestBody RequestUserDTO userDTO, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
             List<String> errors = bindingResult.getFieldErrors()
                     .stream()
@@ -43,16 +44,15 @@ public class AuthController {
 
             return ResponseEntity.badRequest().body(errors);
         }
-        UserDTO response;
         try {
-            response = userService.createUser(userDTO);
+            ResponseUserDTO response = userService.createUser(userDTO);
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (UserAlreadyExists e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
             e.printStackTrace();
             return new ResponseEntity<>("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     @PostMapping("/login")

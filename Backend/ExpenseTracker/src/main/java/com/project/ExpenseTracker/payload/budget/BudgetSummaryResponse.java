@@ -1,7 +1,6 @@
-package com.project.ExpenseTracker.payload;
+package com.project.ExpenseTracker.payload.budget;
 
 import com.project.ExpenseTracker.enums.ExpenseCategory;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
