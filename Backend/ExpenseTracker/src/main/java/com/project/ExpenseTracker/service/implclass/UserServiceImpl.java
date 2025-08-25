@@ -174,13 +174,4 @@ public class UserServiceImpl implements UserService {
         });
     }
 
-    public ResponseUserDTO convertToDto(Users user) {
-        ResponseUserDTO userDTO = modelMapper.map(user, ResponseUserDTO.class);
-        List<ResponseExpenseDTO> requestExpenseDTOS = user.getExpenses()
-                .stream()
-                .map(expense -> modelMapper.map(expense, ResponseExpenseDTO.class))
-                .collect(Collectors.toList());
-        userDTO.setExpenses(requestExpenseDTOS);
-        return userDTO;
-    }
 }
