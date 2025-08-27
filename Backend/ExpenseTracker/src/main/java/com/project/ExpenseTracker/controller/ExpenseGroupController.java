@@ -1,6 +1,5 @@
 package com.project.ExpenseTracker.controller;
 
-import com.project.ExpenseTracker.payload.budget.RequestBudgetDTO;
 import com.project.ExpenseTracker.payload.expenseGroup.RequestGroupDTO;
 import com.project.ExpenseTracker.payload.expenseGroup.ResponseGroupDTO;
 import com.project.ExpenseTracker.service.abstractclass.ExpenseGroupService;
@@ -22,19 +21,19 @@ public class ExpenseGroupController {
 
     @PostMapping("/{uid}/create")
     public ResponseEntity<?> createGroup(@PathVariable Long uid, @Valid @RequestBody RequestGroupDTO requestGroupDTO, BindingResult bindingResult) {
+
         try {
-            if(bindingResult.hasErrors()){
+            if (bindingResult.hasErrors()) {
                 List<String> errors = bindingResult.getFieldErrors().stream()
                         .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
                         .toList();
                 return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
             }
-            ResponseGroupDTO response = expenseGroupService.createGroup(uid,requestGroupDTO);
+            ResponseGroupDTO response = expenseGroupService.createGroup(uid, requestGroupDTO);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
-        } catch (SecurityException e){
+        } catch (SecurityException e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
