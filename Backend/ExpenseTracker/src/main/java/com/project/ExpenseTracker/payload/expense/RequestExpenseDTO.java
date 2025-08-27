@@ -19,7 +19,7 @@ public class RequestExpenseDTO {
     private String description;
 
     @NotNull(message = "Category is mandatory")
-    private ExpenseCategory expenseCategory = ExpenseCategory.OTHER;
+    private ExpenseCategory expenseCategory;
 
 
     @NotNull(message = "Amount is mandatory")

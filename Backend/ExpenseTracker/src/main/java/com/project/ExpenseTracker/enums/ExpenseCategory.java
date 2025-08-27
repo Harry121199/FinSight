@@ -1,18 +1,28 @@
 package com.project.ExpenseTracker.enums;
 
 public enum ExpenseCategory {
+    // --- Core Living Expenses ---
     FOOD,
     TRANSPORT,
     BILLS_UTILITIES,
+    HEALTHCARE,
+    HOME_MAINTENANCE,
+
+    // --- Discretionary & Lifestyle ---
     SHOPPING,
     ENTERTAINMENT,
-    HEALTHCARE,
-
     PERSONAL_CARE,
-    EDUCATION,
-    HOME_MAINTENANCE,
-    GIFTS_DONATIONS,
-    INVESTMENTS,
+    TRAVEL, // New: For vacations and trips
+    PETS, // New: For pet-related costs
 
-    OTHER
+    // --- Financial & Obligations ---
+    EDUCATION,
+    INVESTMENTS,
+    GIFTS_DONATIONS,
+    INSURANCE, // New: For health, auto, life insurance
+    DEBT_PAYMENT, // New: For credit cards, loans
+    TAXES, // New: For income, property taxes
+
+    // --- Miscellaneous ---
+    OTHER // Corrected from OTHERS for consistency
 }
