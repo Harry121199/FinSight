@@ -3,7 +3,6 @@ package com.project.ExpenseTracker.service.implclass;
 
 import com.project.ExpenseTracker.enums.ExpenseCategory;
 import com.project.ExpenseTracker.exception.ExpenseNotFound;
-import com.project.ExpenseTracker.exception.UserNotFound;
 import com.project.ExpenseTracker.filter.ExpenseFilterRequest;
 import com.project.ExpenseTracker.filter.ExpenseFilterSpecification;
 import com.project.ExpenseTracker.model.Expense;
@@ -24,6 +23,8 @@ import jakarta.validation.Validator;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,27 +48,32 @@ public class ExpenseServiceImpl implements ExpenseService {
     private EntityManager entityManager;
 
 
+    private Users getCurrentUser() {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return userRepo.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new SecurityException("User not loggedIn with ID:".concat(userDetails.getUsername())));
+    }
+
     @Override
     @Transactional
-    public ResponseExpenseDTO addExpenseOfUser(Long uid, RequestExpenseDTO requestExpenseDTO) {
-        Users users = userRepo.findById(uid).orElseThrow(() -> new UserNotFound("User doesn't exists"));
+    public ResponseExpenseDTO addExpenseOfUser(RequestExpenseDTO requestExpenseDTO) {
+        Users currentUser = getCurrentUser();
         Expense expense = modelMapper.map(requestExpenseDTO, Expense.class);
-        expense.setUser(users);
+        expense.setUser(currentUser);
         Expense saved = expenseRepo.save(expense);
         return modelMapper.map(saved, ResponseExpenseDTO.class);
     }
 
     @Override
     @Transactional
-    public List<ResponseExpenseDTO> addAllExpenses(List<RequestExpenseDTO> requestExpenseDTOList, Long uid) {
-        Users users = userRepo.findById(uid)
-                .orElseThrow(() -> new UserNotFound("User cannot be found with ID: " + uid));
+    public List<ResponseExpenseDTO> addAllExpenses(List<RequestExpenseDTO> requestExpenseDTOList) {
+        Users currentUser = getCurrentUser();
         List<Expense> expenseList = requestExpenseDTOList.stream()
                 .map(expenseDTO -> modelMapper.map(expenseDTO, Expense.class))
                 .toList();
         return expenseList.stream()
                 .map(expense -> {
-                    expense.setUser(users);
+                    expense.setUser(currentUser);
                     Expense saved = expenseRepo.save(expense);
                     return modelMapper.map(saved, ResponseExpenseDTO.class);
                 }).toList();
@@ -128,11 +134,11 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     @Override
     @Transactional
-    public ResponseExpenseDTO updateExpenseOfUser(Long uid, Long eid, Map<String, Object> updates) {
-
+    public ResponseExpenseDTO updateExpenseOfUser(Long eid, Map<String, Object> updates) {
+        Users currentUser = getCurrentUser();
         Expense expense = expenseRepo.findById(eid)
                 .orElseThrow(() -> new ExpenseNotFound("No expense found with ID: " + eid));
-        if (!expense.getUser().getUid().equals(uid)) {
+        if (!expense.getUser().getUid().equals(currentUser.getUid())) {
             throw new SecurityException("user is not authorized to make changes in expense");
         }
         mapToObject(expense, updates);
@@ -163,8 +169,9 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    public List<ResponseExpenseDTO> getFilterExpenses(Long uid, ExpenseFilterRequest expenseFilterRequest) {
-        ExpenseFilterSpecification<Expense> expenseFilterSpecification = new ExpenseFilterSpecification<>(uid, expenseFilterRequest.getFilters());
+    public List<ResponseExpenseDTO> getFilterExpenses(ExpenseFilterRequest expenseFilterRequest) {
+        Users currentUser = getCurrentUser();
+        ExpenseFilterSpecification<Expense> expenseFilterSpecification = new ExpenseFilterSpecification<>(currentUser.getUid(), expenseFilterRequest.getFilters());
         Sort sort = Sort.unsorted();
         if(expenseFilterRequest.getSortField()!=null&&!expenseFilterRequest.getSortField().isEmpty()){
             Sort.Direction direction = "desc".equalsIgnoreCase(expenseFilterRequest.getSortDirection())
@@ -177,13 +184,14 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    public List<ExpenseSummaryResponse> getExpenseSummary(Long uid, ExpenseCategory expenseCategory, String period) {
+    public List<ExpenseSummaryResponse> getExpenseSummary(ExpenseCategory expenseCategory, String period) {
+        Users currentUser = getCurrentUser();
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<ExpenseSummaryResponse> cq = cb.createQuery(ExpenseSummaryResponse.class);
         Root<Expense> expenseRoot = cq.from(Expense.class);
 
         List<Predicate> predicates = new ArrayList<>();
-        predicates.add(cb.equal(expenseRoot.get("user").get("uid"), uid));
+        predicates.add(cb.equal(expenseRoot.get("user").get("uid"), currentUser.getUid()));
         if(period!=null&&!period.isEmpty()){
             YearMonth yearMonth = YearMonth.parse(period);
             LocalDate startDate = yearMonth.atDay(1);

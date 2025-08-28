@@ -25,8 +25,8 @@ public class ExpenseGroupController {
     @Autowired
     private ExpenseGroupService expenseGroupService;
 
-    @PostMapping("/{uid}/create")
-    public ResponseEntity<?> createGroup(@PathVariable Long uid, @Valid @RequestBody RequestGroupDTO requestGroupDTO, BindingResult bindingResult) {
+    @PostMapping("/create")
+    public ResponseEntity<?> createGroup(@Valid @RequestBody RequestGroupDTO requestGroupDTO, BindingResult bindingResult) {
 
         try {
             if (bindingResult.hasErrors()) {
@@ -35,7 +35,7 @@ public class ExpenseGroupController {
                         .toList();
                 return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
             }
-            ResponseGroupDTO response = expenseGroupService.createGroup(uid, requestGroupDTO);
+            ResponseGroupDTO response = expenseGroupService.createGroup(requestGroupDTO);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (SecurityException e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
@@ -83,10 +83,9 @@ public class ExpenseGroupController {
         }
     }
 
-    @PostMapping("/add/user")
+    @PostMapping("/add/user/{gid}")
     public ResponseEntity<?> addUserInGroup(
-            @RequestParam Long gid,
-            @RequestParam Long uid,
+            @PathVariable Long gid,
             @Valid @RequestBody UserNameDTO userNameDTO,
             BindingResult bindingResult) {
         try {
@@ -96,7 +95,7 @@ public class ExpenseGroupController {
                         .toList();
                 return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
             }
-            String response = expenseGroupService.addUser(userNameDTO, gid,uid);
+            String response = expenseGroupService.addUser(userNameDTO, gid);
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (SecurityException | UserNotFound | UserNotInGroup e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
@@ -106,10 +105,29 @@ public class ExpenseGroupController {
         }
     }
 
-    @GetMapping("/get/users")
-    public ResponseEntity<?> getAllUser(@RequestParam Long gid, @RequestParam Long uid) {
+    @GetMapping("/get/users/{gid}")
+    public ResponseEntity<?> getAllUser(@PathVariable Long gid) {
         try {
-            List<ResponseUserDTO> response = expenseGroupService.getAllUser(gid, uid);
+            List<ResponseUserDTO> response = expenseGroupService.getAllUser(gid);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (SecurityException | UserNotFound | UserNotInGroup e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @DeleteMapping("/remove/user/{gid}")
+    public ResponseEntity<?> removeUser(@PathVariable Long gid, @Valid @RequestBody UserNameDTO userNameDTO, BindingResult bindingResult) {
+        try {
+            if (bindingResult.hasErrors()) {
+                List<String> errors = bindingResult.getFieldErrors().stream()
+                        .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                        .toList();
+                return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+            }
+            String response = expenseGroupService.removeUser(userNameDTO, gid);
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (SecurityException | UserNotFound | UserNotInGroup e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);

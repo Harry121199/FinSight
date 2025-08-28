@@ -13,13 +13,13 @@ import java.util.Map;
 public interface UserService {
     ResponseUserDTO createUser(@Valid RequestUserDTO userDTO);
 
-    List<ResponseExpenseDTO> getAllExpensesOfUser(Long uid);
+    List<ResponseExpenseDTO> getAllExpensesOfUser();
 
-    String deleteExpenseOfUser(Long uid, Long eid);
+    String deleteExpenseOfUser(Long eid);
 
     List<String> validation(Map<String, Object> updates, UserUpdateDTO userDTO);
 
-    ResponseUserDTO updateUserDetails(Long uid, Map<String, Object> updates);
+    ResponseUserDTO updateUserDetails(Map<String, Object> updates);
 
-    void deleteUser(Long uid, @Valid UserDeleteRequest userDeleteRequest);
+    String deleteUser(@Valid UserDeleteRequest userDeleteRequest);
 }

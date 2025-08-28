@@ -24,10 +24,10 @@ public class BudgetController {
     @Autowired
     private BudgetService budgetService;
 
-    @GetMapping("/get/budget/{uid}")
-    public ResponseEntity<?> getAllBudgetsOfUser(@PathVariable Long uid) {
+    @GetMapping("/get/budget")
+    public ResponseEntity<?> getAllBudgetsOfUser() {
         try {
-            List<ResponseBudgetDTO> response = budgetService.getAllBudgetsOfUser(uid);
+            List<ResponseBudgetDTO> response = budgetService.getAllBudgetsOfUser();
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (UserNotFound e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
@@ -37,8 +37,8 @@ public class BudgetController {
         }
     }
 
-    @PostMapping("/create/{uid}")
-    public ResponseEntity<?> createBudget(@Valid @RequestBody RequestBudgetDTO requestBudgetDTO, @PathVariable Long uid, BindingResult bindingResult) {
+    @PostMapping("/create")
+    public ResponseEntity<?> createBudget(@Valid @RequestBody RequestBudgetDTO requestBudgetDTO, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
             List<String> errors = bindingResult.getFieldErrors().stream()
                     .map(fieldError -> fieldError.getDefaultMessage())
@@ -46,7 +46,7 @@ public class BudgetController {
             return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
         }
         try {
-            ResponseBudgetDTO response = budgetService.createBudget(uid, requestBudgetDTO);
+            ResponseBudgetDTO response = budgetService.createBudget(requestBudgetDTO);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (UserNotFound | BudgetAlreadyExists e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.FORBIDDEN);
@@ -56,8 +56,8 @@ public class BudgetController {
         }
     }
 
-    @PostMapping("/createall/{uid}")
-    public ResponseEntity<?> createAllBudget(@Valid @RequestBody List<RequestBudgetDTO> requestBudgetDTOS, @PathVariable Long uid, BindingResult bindingResult) {
+    @PostMapping("/createall")
+    public ResponseEntity<?> createAllBudget(@Valid @RequestBody List<RequestBudgetDTO> requestBudgetDTOS, BindingResult bindingResult) {
         try {
             if (bindingResult.hasErrors()) {
                 Set<String> error = bindingResult.getFieldErrors().stream()
@@ -65,7 +65,7 @@ public class BudgetController {
                         .collect(Collectors.toSet());
                 return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
             }
-            List<ResponseBudgetDTO> response = budgetService.createAllBudgets(uid, requestBudgetDTOS);
+            List<ResponseBudgetDTO> response = budgetService.createAllBudgets(requestBudgetDTOS);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
 
         } catch (UserNotFound | BudgetAlreadyExists e) {
@@ -76,10 +76,10 @@ public class BudgetController {
         }
     }
 
-    @PostMapping("/delete")
-    public ResponseEntity<?> deleteBudgetOfUser(@RequestParam Long uid, @RequestParam Long bid) {
+    @DeleteMapping("/delete/{bid}")
+    public ResponseEntity<?> deleteBudgetOfUser(@PathVariable Long bid) {
         try {
-            String response = budgetService.deleteBudgetOfUser(uid, bid);
+            String response = budgetService.deleteBudgetOfUser(bid);
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (SecurityException e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.FORBIDDEN);
@@ -89,12 +89,11 @@ public class BudgetController {
         }
     }
 
-    @GetMapping("/{uid}/summary")
-    public ResponseEntity<?> getBudgetSummaryOfUser(@PathVariable Long uid,
-                                                    @RequestParam String period,
+    @GetMapping("/summary")
+    public ResponseEntity<?> getBudgetSummaryOfUser(@RequestParam String period,
                                                     @RequestParam(required = false) ExpenseCategory expenseCategory) {
         try {
-            List<BudgetSummaryResponse> responses = budgetService.getBudgetSummary(uid, period,expenseCategory);
+            List<BudgetSummaryResponse> responses = budgetService.getBudgetSummary(period,expenseCategory);
             return new ResponseEntity<>(responses, HttpStatus.OK);
         } catch (UserNotFound e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);

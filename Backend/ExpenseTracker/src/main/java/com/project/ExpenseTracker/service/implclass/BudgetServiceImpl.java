@@ -22,6 +22,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,35 +50,38 @@ public class BudgetServiceImpl implements BudgetService {
     private EntityManager entityManager;
 
 
+    private Users getCurrentUser() {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return userRepo.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new UserNotFound("User not loggedIn"));
+    }
+
 
     @Override
     @Transactional
-    public ResponseBudgetDTO createBudget(Long uid, @Valid RequestBudgetDTO requestBudgetDTO) {
-        Users users = userRepo.findById(uid)
-                .orElseThrow(() -> new UserNotFound("User not exist with ID: " + uid));
-        boolean doBudgetExists = budgetRepo.existsByUserAndExpenseCategoryAndPeriod(users, requestBudgetDTO.getExpenseCategory(), requestBudgetDTO.getPeriod());
+    public ResponseBudgetDTO createBudget(@Valid RequestBudgetDTO requestBudgetDTO) {
+        Users currentUser = getCurrentUser();
+        boolean doBudgetExists = budgetRepo.existsByUserAndExpenseCategoryAndPeriod(currentUser, requestBudgetDTO.getExpenseCategory(), requestBudgetDTO.getPeriod());
         if (doBudgetExists) {
             throw new BudgetAlreadyExists("Budget already exists with category: " + requestBudgetDTO.getExpenseCategory());
         }
 
         Budget mapped = modelMapper.map(requestBudgetDTO, Budget.class);
-        mapped.setUser(users);
+        mapped.setUser(currentUser);
         Budget saved = budgetRepo.save(mapped);
         return modelMapper.map(saved, ResponseBudgetDTO.class);
     }
 
     @Override
     @Transactional
-    public List<ResponseBudgetDTO> createAllBudgets(Long uid, @Valid List<RequestBudgetDTO> requestBudgetDTOList) {
-
-        Users users = userRepo.findById(uid)
-                .orElseThrow(() -> new UserNotFound("User not found with ID: " + uid));
+    public List<ResponseBudgetDTO> createAllBudgets(@Valid List<RequestBudgetDTO> requestBudgetDTOList) {
+        Users currentUser = getCurrentUser();
         return requestBudgetDTOList.stream().map(responseBudgetDTO -> {
-            if (budgetRepo.existsByUserAndExpenseCategoryAndPeriod(users, responseBudgetDTO.getExpenseCategory(), responseBudgetDTO.getPeriod())) {
+            if (budgetRepo.existsByUserAndExpenseCategoryAndPeriod(currentUser, responseBudgetDTO.getExpenseCategory(), responseBudgetDTO.getPeriod())) {
                 throw new BudgetAlreadyExists("Budget already exists with category: " + responseBudgetDTO.getExpenseCategory());
             }
             Budget mapped = modelMapper.map(responseBudgetDTO, Budget.class);
-            mapped.setUser(users);
+            mapped.setUser(currentUser);
             Budget saved = budgetRepo.save(mapped);
             return modelMapper.map(saved, ResponseBudgetDTO.class);
         }).toList();
@@ -84,10 +89,11 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     @Transactional
-    public String deleteBudgetOfUser(Long uid, Long bid) {
+    public String deleteBudgetOfUser(Long bid) {
+        Users currentUser = getCurrentUser();
         Budget budget = budgetRepo.findById(bid)
                 .orElseThrow(() -> new BudgetNotFound("Budget not found with ID: " + bid));
-        if (!budget.getUser().getUid().equals(uid)) {
+        if (!budget.getUser().getUid().equals(currentUser.getUid())) {
             throw new SecurityException("User not allowed to make changes in the budget");
         }
         budgetRepo.delete(budget);
@@ -95,10 +101,9 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
-    public List<ResponseBudgetDTO> getAllBudgetsOfUser(Long uid) {
-        Users users = userRepo.findById(uid)
-                .orElseThrow(() -> new UserNotFound("User not found with ID: " + uid));
-        return users.getBudgets().stream()
+    public List<ResponseBudgetDTO> getAllBudgetsOfUser() {
+        Users currentUser = getCurrentUser();
+        return currentUser.getBudgets().stream()
                 .map(budget -> modelMapper.map(budget, ResponseBudgetDTO.class))
                 .toList();
     }
@@ -125,13 +130,15 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<BudgetSummaryResponse> getBudgetSummary(Long uid, String period, ExpenseCategory expenseCategory) {
+    public List<BudgetSummaryResponse> getBudgetSummary(String period, ExpenseCategory expenseCategory) {
+        Users currentUser = getCurrentUser();
         List<Budget> budgetsToProcess = new ArrayList<>();
+
         if(expenseCategory!=null){
-            budgetRepo.findByUserUidAndPeriodAndExpenseCategory(uid, period, expenseCategory)
+            budgetRepo.findByUserUidAndPeriodAndExpenseCategory(currentUser.getUid(), period, expenseCategory)
                     .ifPresent(budgetsToProcess::add);
         }else {
-            budgetsToProcess = budgetRepo.findByUserUidAndPeriod(uid, period);
+            budgetsToProcess = budgetRepo.findByUserUidAndPeriod(currentUser.getUid(), period);
         }
 
         List<BudgetSummaryResponse> summaries = new ArrayList<>();
@@ -145,7 +152,7 @@ public class BudgetServiceImpl implements BudgetService {
                     CriteriaQuery<Double> cq = cb.createQuery(Double.class);
                     Root<Expense> expenseRoot = cq.from(Expense.class);
 
-                    Predicate userPredicate = cb.equal(expenseRoot.get("user").get("uid"), uid);
+                    Predicate userPredicate = cb.equal(expenseRoot.get("user").get("uid"), currentUser.getUid());
                     Predicate categoryPredicate = cb.equal(expenseRoot.get("expenseCategory"), budget.getExpenseCategory());
                     Predicate datePredicate = cb.between(expenseRoot.get("transactionDate"), startDate, endDate);
                     cq.where(cb.and((userPredicate), categoryPredicate, datePredicate));

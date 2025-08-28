@@ -2,10 +2,8 @@ package com.project.ExpenseTracker.service.implclass;
 
 import com.project.ExpenseTracker.exception.ExpenseNotFound;
 import com.project.ExpenseTracker.exception.UserAlreadyExists;
-import com.project.ExpenseTracker.exception.UserNotFound;
 import com.project.ExpenseTracker.model.Expense;
 import com.project.ExpenseTracker.model.Users;
-import com.project.ExpenseTracker.payload.expense.RequestExpenseDTO;
 import com.project.ExpenseTracker.payload.expense.ResponseExpenseDTO;
 import com.project.ExpenseTracker.payload.user.RequestUserDTO;
 import com.project.ExpenseTracker.payload.user.ResponseUserDTO;
@@ -32,7 +30,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 
 @Service
@@ -55,6 +52,13 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private AuthenticationManager authenticationManager;
 
+
+    private Users getCurrentUser() {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return userRepo.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new SecurityException("User not loggedIn with ID:".concat(userDetails.getUsername())));
+    }
+
     @Override
     @Transactional
     public ResponseUserDTO createUser(@Valid RequestUserDTO userDTO) {
@@ -68,20 +72,20 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<ResponseExpenseDTO> getAllExpensesOfUser(Long uid) {
-        Users user = userRepo.findById(uid)
-                .orElseThrow(() -> new UserNotFound("user not found with the given id: " + uid));
-        return user.getExpenses().stream()
+    public List<ResponseExpenseDTO> getAllExpensesOfUser() {
+        Users currentUser = getCurrentUser();
+        return currentUser.getExpenses().stream()
                 .map(expense -> modelMapper.map(expense, ResponseExpenseDTO.class))
                 .toList();
     }
 
     @Override
     @Transactional
-    public String deleteExpenseOfUser(Long uid, Long eid) {
+    public String deleteExpenseOfUser(Long eid) {
+        Users currentUser = getCurrentUser();
         Expense expense = expenseRepo.findById(eid)
                 .orElseThrow(() -> new ExpenseNotFound("Expense not found with ID: " + eid));
-        if(!expense.getUser().getUid().equals(uid)){
+        if (!expense.getUser().getUid().equals(currentUser.getUid())) {
             throw new SecurityException("user is authorized to make changes in expense");
         }
         expenseRepo.delete(expense);
@@ -99,12 +103,16 @@ public class UserServiceImpl implements UserService {
                 if (field.getType().isEnum()) {
                     Object enumValue = Enum.valueOf((Class<Enum>) field.getType(), value.toString().toUpperCase());
                     field.set(userDTO, enumValue);
+                } else if (field.getName().equals("email")) {
+                    throw new SecurityException("Email cannot be updated");
                 } else {
                     field.set(userDTO, value);
                 }
             } catch (NoSuchFieldException e) {
                 errors.add("key with field name ".concat(key).concat(" do not exists."));
-            }catch (IllegalAccessException e){
+            } catch (SecurityException e) {
+                errors.add(e.getMessage());
+            } catch (IllegalAccessException e) {
                 throw new RuntimeException("something went wrong!!!");
             }
         });
@@ -119,31 +127,21 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public ResponseUserDTO updateUserDetails(Long uid, Map<String, Object> updates) {
-        Users users = userRepo.findById(uid)
-                .orElseThrow(() -> new UserNotFound("user not found with ID: " + uid));
-        mapToObject(updates, users);
-        Users saved = userRepo.save(users);
+    public ResponseUserDTO updateUserDetails(Map<String, Object> updates) {
+        Users currentUser = getCurrentUser();
+        mapToObject(updates, currentUser);
+        Users saved = userRepo.save(currentUser);
         return modelMapper.map(saved, ResponseUserDTO.class);
     }
 
     @Override
     @Transactional
-    public void deleteUser(Long uid, UserDeleteRequest userDeleteRequest) {
-        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String currentUsername = userDetails.getUsername();
-        Users userToDelete = userRepo.findById(uid)
-                .orElseThrow(() -> new UserNotFound("User not found with ID: " + uid));
-
-        //email is username....
-        if (!userToDelete.getEmail().equals(currentUsername)) {
-            throw new SecurityException("Your are not authorized to delete this account");
-        }
-
+    public String deleteUser(UserDeleteRequest userDeleteRequest) {
+        Users currentUser = getCurrentUser();
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            currentUsername,
+                            currentUser.getEmail(),
                             userDeleteRequest.getPassword()
                     )
             );
@@ -152,7 +150,8 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
         }
-        userRepo.delete(userToDelete);
+        userRepo.delete(currentUser);
+        return "User successfully Deleted with email: ".concat(currentUser.getEmail());
     }
 
     @SuppressWarnings(value = {"unchecked"})

@@ -42,25 +42,20 @@ public class ExpenseGroupServiceImpl implements ExpenseGroupService {
     @Autowired
     private ExpenseRepo expenseRepo;
 
-    private UserDetails getUserDetails() {
-        return (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    private Users getCurrentUser() {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return userRepo.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new SecurityException("You are not loggedIN"));
     }
 
     @Override
     @Transactional
-    public ResponseGroupDTO createGroup(Long uid, @Valid RequestGroupDTO requestGroupDTO) {
-        UserDetails userDetails = getUserDetails();
-
-        Users user = userRepo.findById(uid)
-                .orElseThrow(() -> new UserNotFound("User Not found with ID: " + uid));
-
-        if(!userDetails.getUsername().equals(user.getEmail()))
-            throw new SecurityException("You are allowed to perform this action");
-
+    public ResponseGroupDTO createGroup(@Valid RequestGroupDTO requestGroupDTO) {
+        Users currentUser = getCurrentUser();
         ExpenseGroup mapped = modelMapper.map(requestGroupDTO, ExpenseGroup.class);
-        mapped.setCreatedBy(user);
+        mapped.setCreatedBy(currentUser);
         List<Users> members = new ArrayList<>();
-        members.add(user);
+        members.add(currentUser);
         if(requestGroupDTO.getMembersIdentifiers() != null){
             requestGroupDTO.getMembersIdentifiers()
                     .forEach(membersEmail -> members.add(userRepo.findByEmail(membersEmail)
@@ -74,17 +69,16 @@ public class ExpenseGroupServiceImpl implements ExpenseGroupService {
     @Override
     @Transactional
     public List<ResponseExpenseDTO> addAllExpenses(Long gid, List<RequestExpenseDTO> requestExpenseDTOList) {
-        UserDetails userDetails = getUserDetails();
-
-        Users currentUser = userRepo.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new SecurityException("User not logged in: "));
+        Users currentUser = getCurrentUser();
 
         ExpenseGroup expenseGroup = expenseGroupRepo.findById(gid)
                 .orElseThrow(() -> new GroupNotFound("Group not found with ID: " + gid));
 
         boolean notPresent = expenseGroup.getMembers().stream()
                 .noneMatch(member -> member.getUid().equals(currentUser.getUid()));
+
         if(notPresent) throw new UserNotInGroup("User not a member of this group.");
+
         List<Expense> expenseList = requestExpenseDTOList.stream()
                 .map(requestExpenseDTO -> {
                     Expense expense = modelMapper.map(requestExpenseDTO, Expense.class);
@@ -94,6 +88,7 @@ public class ExpenseGroupServiceImpl implements ExpenseGroupService {
                 })
                 .toList();
         List<Expense> expenses = expenseRepo.saveAll(expenseList);
+
         return expenses.stream()
                 .map(expense -> modelMapper.map(expense, ResponseExpenseDTO.class))
                 .toList();
@@ -102,33 +97,35 @@ public class ExpenseGroupServiceImpl implements ExpenseGroupService {
     @Override
     @Transactional
     public ResponseExpenseDTO addExpense(Long gid, RequestExpenseDTO requestExpenseDTO) {
-        UserDetails userDetails = getUserDetails();
-        Users currentUser = userRepo.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new SecurityException("User not logged in: "));
+        Users currentUser = getCurrentUser();
+
         ExpenseGroup expenseGroup = expenseGroupRepo.findById(gid)
                 .orElseThrow(() -> new GroupNotFound("Group not found with ID: " + gid));
+
         boolean notPresent = expenseGroup.getMembers().stream()
                 .noneMatch(members -> members.getUid().equals(currentUser.getUid()));
+
         if(notPresent) throw new UserNotInGroup("User not a member of this group.");
+
         Expense mapped = modelMapper.map(requestExpenseDTO, Expense.class);
         mapped.setUser(currentUser);
         mapped.setExpenseGroup(expenseGroup);
         Expense saved = expenseRepo.save(mapped);
+
         return modelMapper.map(saved, ResponseExpenseDTO.class);
     }
 
     @Override
     @Transactional
-    public String addUser(UserNameDTO userNameDTO, Long gid, Long uid) {
-        UserDetails userDetails = getUserDetails();
-        Users currentUser = userRepo.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new SecurityException("User not logged in: "));
+    public String addUser(UserNameDTO userNameDTO, Long gid) {
+        Users currentUser = getCurrentUser();
 
         ExpenseGroup expenseGroup = expenseGroupRepo.findById(gid)
                 .orElseThrow(() -> new GroupNotFound("Group not found with ID: " + gid));
 
         boolean notPresent = expenseGroup.getMembers().stream()
                 .noneMatch(members -> members.getUid().equals(currentUser.getUid()));
+
         if(notPresent) throw new UserNotInGroup("Current user not a member of this group.");
 
         Users memberToAdd = userRepo.findByEmail(userNameDTO.getEmail())
@@ -138,23 +135,47 @@ public class ExpenseGroupServiceImpl implements ExpenseGroupService {
 
         expenseGroupRepo.save(expenseGroup);
 
-        return "User Successfully";
+        return "User added Successfully";
     }
 
     @Override
-    public List<ResponseUserDTO> getAllUser(Long gid, Long uid) {
-        UserDetails userDetails = getUserDetails();
-        Users currentUser = userRepo.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new SecurityException("User not loggedIn."));
+    public List<ResponseUserDTO> getAllUser(Long gid) {
+        Users currentUser = getCurrentUser();
+
         ExpenseGroup expenseGroup = expenseGroupRepo.findById(gid)
                 .orElseThrow(() -> new GroupNotFound("Group not found with ID: " + gid));
 
         boolean notPresent = expenseGroup.getMembers().stream()
                 .noneMatch(members -> members.getUid().equals(currentUser.getUid()));
+
         if(notPresent) throw new UserNotInGroup("Current user not a member of this group.");
+
 
         return expenseGroup.getMembers().stream()
                 .map(members -> modelMapper.map(members, ResponseUserDTO.class))
                 .toList();
     }
+
+    @Override
+    @Transactional
+    public String removeUser(UserNameDTO userNameDTO, Long gid) {
+        Users currentUser = getCurrentUser();
+
+        ExpenseGroup expenseGroup = expenseGroupRepo.findById(gid)
+                .orElseThrow(() -> new GroupNotFound("Cannot found group with ID: " + gid));
+
+        if (!currentUser.getUid().equals(expenseGroup.getCreatedBy().getUid())) {
+            throw new SecurityException("Only admins can remove users from group");
+        }
+
+        Users memberToRemove = userRepo.findByEmail(userNameDTO.getEmail())
+                .orElseThrow(() -> new UserNotFound("User cannot be found with email: " + userNameDTO.getEmail()));
+
+        boolean removed = expenseGroup.getMembers().removeIf(member -> member.getUid().equals(memberToRemove.getUid()));
+        if(!removed) throw
+                new UserNotInGroup("User cannot be found in this group");
+
+        return "User removed successfully";
+    }
+
 }

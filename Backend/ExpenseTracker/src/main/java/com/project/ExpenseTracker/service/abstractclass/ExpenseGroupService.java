@@ -11,13 +11,15 @@ import jakarta.validation.Valid;
 import java.util.List;
 
 public interface ExpenseGroupService {
-    ResponseGroupDTO createGroup(Long uid, @Valid RequestGroupDTO requestGroupDTO);
+    ResponseGroupDTO createGroup(@Valid RequestGroupDTO requestGroupDTO);
 
     List<ResponseExpenseDTO> addAllExpenses(Long gid, @Valid List<RequestExpenseDTO> requestExpenseDTOList);
 
     ResponseExpenseDTO addExpense(Long gid, @Valid RequestExpenseDTO requestExpenseDTO);
 
-    String addUser(@Valid UserNameDTO userNameDTO, Long gid, Long uid);
+    String addUser(@Valid UserNameDTO userNameDTO, Long gid);
 
-    List<ResponseUserDTO> getAllUser(Long gid, Long uid);
+    List<ResponseUserDTO> getAllUser(Long gid);
+
+    String removeUser(@Valid UserNameDTO userNameDTO, Long gid);
 }

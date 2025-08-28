@@ -10,16 +10,16 @@ import java.util.List;
 import java.util.Map;
 
 public interface BudgetService {
-    ResponseBudgetDTO createBudget(Long uid, @Valid RequestBudgetDTO requestBudgetDTO);
+    ResponseBudgetDTO createBudget(@Valid RequestBudgetDTO requestBudgetDTO);
 
-    List<ResponseBudgetDTO> createAllBudgets(Long uid, @Valid List<RequestBudgetDTO> requestBudgetDTOList);
+    List<ResponseBudgetDTO> createAllBudgets(@Valid List<RequestBudgetDTO> requestBudgetDTOList);
 
-    String deleteBudgetOfUser(Long uid, Long bid);
+    String deleteBudgetOfUser(Long bid);
 
-    List<ResponseBudgetDTO> getAllBudgetsOfUser(Long uid);
+    List<ResponseBudgetDTO> getAllBudgetsOfUser();
 
     List<String> validate(Map<String, Object> summaryFilter, RequestBudgetDTO requestBudgetDTO);
 
 
-    List<BudgetSummaryResponse> getBudgetSummary(Long uid, String period, ExpenseCategory expenseCategory);
+    List<BudgetSummaryResponse> getBudgetSummary(String period, ExpenseCategory expenseCategory);
 }
