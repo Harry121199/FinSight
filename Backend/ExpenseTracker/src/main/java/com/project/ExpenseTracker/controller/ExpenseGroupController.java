@@ -118,6 +118,19 @@ public class ExpenseGroupController {
         }
     }
 
+    @GetMapping("/get/expense/{gid}")
+    public ResponseEntity<?> getAllExpense(@PathVariable Long gid) {
+        try {
+            List<ResponseExpenseDTO> response = expenseGroupService.getAllExpense(gid);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (SecurityException | UserNotFound | UserNotInGroup e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @DeleteMapping("/remove/user/{gid}")
     public ResponseEntity<?> removeUser(@PathVariable Long gid, @Valid @RequestBody UserNameDTO userNameDTO, BindingResult bindingResult) {
         try {
@@ -136,4 +149,18 @@ public class ExpenseGroupController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @DeleteMapping("/remove/expense")
+    public ResponseEntity<?> removeExpense(@RequestParam Long eid, @RequestParam Long gid) {
+        try {
+            String response = expenseGroupService.removeExpense(eid,gid);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (SecurityException | UserNotFound | UserNotInGroup e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
 }

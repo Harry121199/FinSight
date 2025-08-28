@@ -157,6 +157,20 @@ public class ExpenseGroupServiceImpl implements ExpenseGroupService {
     }
 
     @Override
+    public List<ResponseExpenseDTO> getAllExpense(Long gid) {
+        Users currentUser = getCurrentUser();
+        ExpenseGroup expenseGroup = expenseGroupRepo.findById(gid)
+                .orElseThrow(() -> new GroupNotFound("Group cannot be found with ID: " + gid));
+        boolean notMember = expenseGroup.getMembers().stream().noneMatch(member -> member.getUid().equals(currentUser.getUid()));
+        if(notMember) {
+            throw new UserNotInGroup("Current user not a member of group with ID: " + gid);
+        }
+        return expenseGroup.getExpenses().stream()
+                .map(expense -> modelMapper.map(expense, ResponseExpenseDTO.class))
+                .toList();
+    }
+
+    @Override
     @Transactional
     public String removeUser(UserNameDTO userNameDTO, Long gid) {
         Users currentUser = getCurrentUser();
@@ -178,4 +192,29 @@ public class ExpenseGroupServiceImpl implements ExpenseGroupService {
         return "User removed successfully";
     }
 
+    @Override
+    @Transactional
+    public String removeExpense(Long eid, Long gid) {
+        Users currentUser = getCurrentUser();
+        Expense expense = expenseRepo.findById(eid)
+                .orElseThrow(() -> new RuntimeException("Expense not found with ID: " + eid));
+
+        // 3. Verify the expense belongs to the specified group
+        if (expense.getExpenseGroup() == null || !expense.getExpenseGroup().getGid().equals(gid)) {
+            throw new IllegalArgumentException("Expense does not belong to the specified group.");
+        }
+
+        // 4. Authorization Check:
+        // Allow deletion if the user is the one who added the expense OR is the group creator.
+        boolean isCreator = expense.getExpenseGroup().getCreatedBy().getUid().equals(currentUser.getUid());
+        boolean isPayer = expense.getUser().getUid().equals(currentUser.getUid());
+
+        if (!isCreator && !isPayer) {
+            throw new SecurityException("User is not authorized to delete this expense.");
+        }
+
+        // 5. If all checks pass, delete the expense
+        expenseRepo.delete(expense);
+        return "Expense removed successfully";
+    }
 }

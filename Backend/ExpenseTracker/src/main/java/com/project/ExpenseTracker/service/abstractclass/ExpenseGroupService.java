@@ -22,4 +22,8 @@ public interface ExpenseGroupService {
     List<ResponseUserDTO> getAllUser(Long gid);
 
     String removeUser(@Valid UserNameDTO userNameDTO, Long gid);
+
+    String removeExpense(Long eid, Long gid);
+
+    List<ResponseExpenseDTO> getAllExpense(Long gid);
 }
